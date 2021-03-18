@@ -1,0 +1,2 @@
+"Unused include","Finds #include directives that are not needed because none of the included elements are used.","recommendation","Redundant include, this file does not require [[""/src/source/include/cfg/cs_Git.h""|""file:///src/source/include/cfg/cs_Git.h:0:0:0:0""]].","/default/src/cfg/cs_Git.cpp","1","1","1","23"
+"Unused static variable","A static variable that is never accessed may be an indication that the code is incomplete or has a typo.","recommendation","Static variable g_RAM_MICROAPP_END is never read","/default/include/cfg/cs_StaticConfig.h","22","17","22","34"
