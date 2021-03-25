@@ -8,7 +8,7 @@ echo "Install the dependencies for compiling the repository"
 apt-get update -yqq
 dpkg --configure -a
 DEBIAN_FRONTEND="noninteractive" apt-get install -yqq tzdata
-apt-get install -yqq cmake sudo libncurses5 python3 python3-pip
+apt-get install -yqq cmake sudo libncurses5 python3 python3-pip pass srecord
 mkdir build
 cd build
 cmake ../
