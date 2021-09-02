@@ -37,6 +37,7 @@ enum CommandHandlerTypes {
 	CTRL_CMD_MESH_COMMAND                = 33,
 	CTRL_CMD_SET_SUN_TIME                = 34,
 	CTRL_CMD_GET_TIME                    = 35,
+	CTRL_CMD_RESET_MESH_TOPOLOGY         = 36,
 
 	CTRL_CMD_ALLOW_DIMMING               = 40,
 	CTRL_CMD_LOCK_SWITCH                 = 41,
@@ -65,9 +66,19 @@ enum CommandHandlerTypes {
 	CTRL_CMD_GET_ADC_CHANNEL_SWAPS       = 87,
 	CTRL_CMD_GET_RAM_STATS               = 88,
 
-	CTRL_CMD_MICROAPP                    = 90,
+	CTRL_CMD_MICROAPP_GET_INFO           = 90,
+	CTRL_CMD_MICROAPP_UPLOAD             = 91,
+	CTRL_CMD_MICROAPP_VALIDATE           = 92,
+	CTRL_CMD_MICROAPP_REMOVE             = 93,
+	CTRL_CMD_MICROAPP_ENABLE             = 94,
+	CTRL_CMD_MICROAPP_DISABLE            = 95,
 
 	CTRL_CMD_CLEAN_FLASH                 = 100,
+
+	CTRL_CMD_FILTER_UPLOAD               = 110,
+	CTRL_CMD_FILTER_REMOVE               = 111,
+	CTRL_CMD_FILTER_COMMIT               = 112,
+	CTRL_CMD_FILTER_GET_SUMMARIES        = 113,
 
 	CTRL_CMD_UNKNOWN                     = 0xFFFF
 };

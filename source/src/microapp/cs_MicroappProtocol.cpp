@@ -29,6 +29,7 @@
 #include <util/cs_Error.h>
 #include <util/cs_Hash.h>
 #include <util/cs_Utils.h>
+#include <microapp/cs_MicroappStorage.h>
 
 void handleSwitchCommand(pin_cmd_t* pin_cmd) {
 	CommandMicroappPinOpcode2 mode = (CommandMicroappPinOpcode2)pin_cmd->opcode2;
@@ -66,8 +67,9 @@ void handlePinSetModeCommand(pin_cmd_t* pin_cmd) {
 	TYPIFY(EVT_GPIO_INIT) gpio;
 	gpio.pin_index = pin;
 	gpio.pull = 0;
+	gpio.callback = 0;
 	CommandMicroappPinOpcode2 opcode2 = (CommandMicroappPinOpcode2)pin_cmd->opcode2;
-	LOGi("Set mode %i for GPIO pin %i", opcode2, pin);
+	LOGi("Set mode %i for virtual pin %i", opcode2, pin);
 	switch(opcode2) {
 		case CS_MICROAPP_COMMAND_PIN_INPUT_PULLUP:
 			gpio.pull = 1;
@@ -112,7 +114,7 @@ void handlePinSetModeCommand(pin_cmd_t* pin_cmd) {
 
 void handlePinActionCommand(pin_cmd_t* pin_cmd) {
 	CommandMicroappPin pin = (CommandMicroappPin)pin_cmd->pin;
-	LOGi("Action on GPIO pin %i", pin);
+	LOGi("Clear, set or configure pin %i", pin);
 	CommandMicroappPinOpcode2 opcode2 = (CommandMicroappPinOpcode2)pin_cmd->opcode2;
 	switch(opcode2) {
 		case CS_MICROAPP_COMMAND_PIN_WRITE: {
@@ -170,8 +172,19 @@ void handlePinCommand(pin_cmd_t* pin_cmd) {
 		case CS_MICROAPP_COMMAND_PIN_GPIO1:
 		case CS_MICROAPP_COMMAND_PIN_GPIO2:
 		case CS_MICROAPP_COMMAND_PIN_GPIO3:
-		case CS_MICROAPP_COMMAND_PIN_GPIO4: {
+		case CS_MICROAPP_COMMAND_PIN_GPIO4:
+		case CS_MICROAPP_COMMAND_PIN_BUTTON1:
+		case CS_MICROAPP_COMMAND_PIN_BUTTON2:
+		case CS_MICROAPP_COMMAND_PIN_BUTTON3:
+		case CS_MICROAPP_COMMAND_PIN_BUTTON4:
+		case CS_MICROAPP_COMMAND_PIN_LED1:
+		case CS_MICROAPP_COMMAND_PIN_LED2:
+		case CS_MICROAPP_COMMAND_PIN_LED3:
+		case CS_MICROAPP_COMMAND_PIN_LED4: {
 			CommandMicroappPinOpcode1 opcode1 = (CommandMicroappPinOpcode1)pin_cmd->opcode1;
+			// We have one virtual device at location 0, so we have to decrement the pin number by one to map
+			// to the array in the GPIO module
+			pin_cmd->pin--;
 			switch(opcode1) {
 				case CS_MICROAPP_COMMAND_PIN_MODE:
 					handlePinSetModeCommand(pin_cmd);
@@ -246,7 +259,7 @@ int handleCommand(uint8_t* payload, uint16_t length) {
 		case CS_MICROAPP_COMMAND_LOG: {
 			char type = payload[1];
 			char option = payload[2];
-			bool newLine = false;
+			__attribute__((unused)) bool newLine = false;
 			if (option == CS_MICROAPP_COMMAND_LOG_NEWLINE) {
 				newLine = true;
 			}
@@ -271,8 +284,8 @@ int handleCommand(uint8_t* payload, uint16_t length) {
 				case CS_MICROAPP_COMMAND_LOG_FLOAT: {
 					// TODO: We get into trouble when printing using %f
 					__attribute__((unused)) int value = *(int*)&payload[3];
-					int before = value / 10000;
-					int after = value - (before * 10000);
+					__attribute__((unused)) int before = value / 10000;
+					__attribute__((unused)) int after = value - (before * 10000);
 					_log(SERIAL_INFO, newLine, "%i.%04i", before, after);
 					break;
 				}
@@ -283,8 +296,8 @@ int handleCommand(uint8_t* payload, uint16_t length) {
 					break;
 				}
 				case CS_MICROAPP_COMMAND_LOG_STR: {
-					int str_length = length - 3; // Check if length <= max_length - 1, for null terminator.
-					char *data = reinterpret_cast<char*>(&(payload[3]));
+					__attribute__((unused)) int str_length = length - 3; // Check if length <= max_length - 1, for null terminator.
+					__attribute__((unused)) char *data = reinterpret_cast<char*>(&(payload[3]));
 					data[str_length] = 0;
 					_log(SERIAL_INFO, newLine, "%s", data);
 					break;
@@ -470,48 +483,33 @@ uint16_t MicroappProtocol::interpretRamdata() {
  *
  * TODO: Return setup and loop addresses
  */
-void MicroappProtocol::callApp() {
-	static bool thumb_mode = true;
-
-	// Check if we want to do this again
-	//if (!isEnabled()) {
-	//	LOGi("Microapp: app not enabled.");
-	//	return;
-	//} 
-
-	TYPIFY(STATE_MICROAPP) state_microapp;
-	cs_state_id_t app_id = 0;
-	cs_state_data_t data(CS_TYPE::STATE_MICROAPP, app_id, (uint8_t*)&state_microapp, sizeof(state_microapp));
-	State::getInstance().get(data);
-
-	if (state_microapp.start_addr == 0x00) {
-		LOGi("Module can't be run. Start address 0?");
-		_booted = false;
-		return;
-	}
+void MicroappProtocol::callApp(uint8_t appIndex) {
+	static bool thumbMode = true;
 
 	initMemory();
 
-	uintptr_t address = state_microapp.start_addr + state_microapp.offset;
-	LOGi("Microapp: start at 0x%04x", address);
+	uintptr_t address = MicroappStorage::getInstance().getStartInstructionAddress(appIndex);
+	LOGi("Microapp: start at 0x%08X", address);
 
-	if (thumb_mode) address += 1;
-	LOGi("Check main code at %p", address);
+	if (thumbMode) {
+		address += 1;
+	}
+	LOGi("Check main code at 0x%08X", address);
 	char *arr = (char*)address;
 	if (arr[0] != 0xFF) {
-		void (*microapp_main)() = (void (*)()) address;
-		LOGi("Call function in module: %p", microapp_main);
-		(*microapp_main)();
+		void (*microappMain)() = (void (*)()) address;
+		LOGi("Call function in module: 0x%p", microappMain);
+		(*microappMain)();
 		LOGi("Module did run.");
 	}
 	_booted = true;
-	LOGi("Booted is at address: %p", &_booted);
+	LOGi("Booted is at address: 0x%p", &_booted);
 }
 
 uint16_t MicroappProtocol::initMemory() {
 	// We have a reserved area of RAM. For now let us clear it to 0
 	// This is actually incorrect (we should skip) and it probably can be done at once as well
-	LOGi("Init memory: clear %p to %p", g_RAM_MICROAPP_BASE, g_RAM_MICROAPP_BASE + g_RAM_MICROAPP_AMOUNT);
+	LOGi("Init memory: clear 0x%p to 0x%p", g_RAM_MICROAPP_BASE, g_RAM_MICROAPP_BASE + g_RAM_MICROAPP_AMOUNT);
 	for (uint32_t i = 0; i < g_RAM_MICROAPP_AMOUNT; ++i) {
 		uint32_t *const val = (uint32_t *)(uintptr_t)(g_RAM_MICROAPP_BASE + i);
 		*val = 0;
@@ -525,7 +523,7 @@ uint16_t MicroappProtocol::initMemory() {
 /*
  * Called from cs_Microapp every time tick. Only when _booted gets up will this function become active.
  */
-void MicroappProtocol::callSetupAndLoop() {
+void MicroappProtocol::callSetupAndLoop(uint8_t appIndex) {
 
 	static uint16_t counter = 0;
 	if (_booted) {
@@ -546,8 +544,8 @@ void MicroappProtocol::callSetupAndLoop() {
 		if (_loaded) {
 			if (counter == 0) {
 				// TODO: we cannot call delay in setup in this way...
-				LOGi("Call setup");
 				void (*setup_func)() = (void (*)()) _setup;
+				LOGi("Call setup at 0x%x", _setup);
 				setup_func();
 				LOGi("Setup done");
 				_cocounter = 0;
@@ -612,18 +610,20 @@ void MicroappProtocol::handleEvent(event_t & event) {
 			LOGi("Register GPIO event handler for microapp");
 			TYPIFY(EVT_GPIO_INIT) gpio = *(TYPIFY(EVT_GPIO_INIT)*)event.data;
 			
-			// we will register the handler in the class
+			// we will register the handler in the class for first empty slot
 			for (int i = 0; i < MAX_ISR_COUNT; ++i) {
 				if (_isr[i].callback == 0) {
+					LOGi("Register callback %x or %i for pin %i", gpio.callback, gpio.callback, gpio.pin_index);
 					_isr[i].callback = gpio.callback;
 					_isr[i].pin = gpio.pin_index;
+					break;
 				}
 			}
 			break;
 		}
 		case CS_TYPE::EVT_GPIO_UPDATE: {
-			LOGi("Get GPIO update");
 			TYPIFY(EVT_GPIO_UPDATE) gpio = *(TYPIFY(EVT_GPIO_UPDATE)*)event.data;
+			LOGi("Get GPIO update for pin %i", gpio.pin_index);
 	
 			uintptr_t callback = 0;
 			// get callback and call
@@ -633,13 +633,16 @@ void MicroappProtocol::handleEvent(event_t & event) {
 					break;
 				}
 			}
+			LOGi("Call %x", callback);
+
 			if (callback == 0) {
-				// LOGd("Not yet registered");
+				LOGi("Callback not yet registered");
 				break;
 			}
 			// we have to do this through another coroutine perhaps (not the same one as loop!), for
 			// now stay on this stack
 			void (*callback_func)() = (void (*)()) callback;
+			LOGi("Call callback at 0x%x", callback);
 			callback_func();
 			break;
 		}

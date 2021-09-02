@@ -212,6 +212,12 @@ typedef struct  {
 	/**
 	 * Scan interval in μs.
 	 *
+	 * Since this setting is also used when connecting, it influences the time it takes to make an outgoing connection.
+	 * For some reason, if the scan interval is 2s, it takes at least 2s before a connection is made.
+	 *
+	 * It's also best to make this interval not a multiple of the advertising interval, because in that case, it can happen
+	 * that the advertisements are outside the scan window every time.
+	 *
 	 * Must not be larger than (1000 * BEARER_SCAN_INT_MAX_MS).
 	 */
 	uint32_t scanIntervalUs;
@@ -220,6 +226,7 @@ typedef struct  {
 	 * Scan window in μs.
 	 *
 	 * Must not be larger than scan interval, and not smaller than (1000 * BEARER_SCAN_WIN_MIN_MS).
+	 * See https://devzone.nordicsemi.com/f/nordic-q-a/14733/s132-scan-interval-window-adv-interval
 	 */
 	uint32_t scanWindowUs;
 

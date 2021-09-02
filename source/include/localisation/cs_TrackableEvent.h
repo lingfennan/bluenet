@@ -7,10 +7,15 @@
 
 #pragma once
 
-#include <localisation/cs_TrackableId.h>
+#include <localisation/cs_AssetFilterPacketAccessors.h>
 
-class TrackableEvent {
+class AssetAcceptedEvent {
 public:
-	TrackableId id;
-	int8_t rssi;
+	AssetFilter _primaryFilter;
+	const scanned_device_t& _asset;
+	uint8_t _acceptedFilterIdBitmask;
+
+	AssetAcceptedEvent(AssetFilter filter, const scanned_device_t& asset, uint8_t acceptedFilterIdBitmask)
+		: _primaryFilter(filter), _asset(asset), _acceptedFilterIdBitmask(acceptedFilterIdBitmask) {}
 };
+

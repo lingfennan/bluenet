@@ -21,8 +21,10 @@ typedef uint32_t ret_code_t;
 #include <app_util.h>
 #include <ble.h>
 #include <ble_advdata.h>
+#include <ble_gap.h>
 #include <ble_gatt.h>
 #include <ble_gatts.h>
+#include <ble_gattc.h>
 #include <ble_hci.h>
 #include <ble_srv_common.h>
 #include <fds.h>
@@ -64,6 +66,7 @@ typedef uint32_t ret_code_t;
 
 #ifndef BOOTLOADER_COMPILATION
 #include <crc16.h>
+#include <crc32.h>
 #include <nrf_gpiote.h>
 #include <nrf_ppi.h>
 #include <nrf_saadc.h>

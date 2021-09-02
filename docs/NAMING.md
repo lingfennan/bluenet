@@ -59,7 +59,7 @@ For example the socket part of the plastic can be reused for both products. Or w
       E Electronics related part (Circuit board etc.)
     Name:
       Plug_Part (the semisphere of the Guidestone and the Crownstone plug that is inserted into existing electrical sockets)
-      Plug_cap_part (the insert of the plug part containing the actual electrical contact meterials, pins, ground plate etc.)
+      Plug_cap_part (the insert of the plug part containing the actual electrical contact materials, pins, ground plate etc.)
       Socket_Part (the top semisphere of the Crownstone plug that accepts other electrical plugs into itself)
       Beacon_cap (the top with eventually a logo of the Guidestone)
       Ring (the ring separating both hemispheres on both the Guidestone and the Crownstone plug)
@@ -177,6 +177,7 @@ The family / market / type triplet is different from the notation at the top of 
     Dongle                05
     Built-in One          06
     Plug One              07
+    Hub                   08
 
 If values are not written they are still `FF`.
 
@@ -192,6 +193,7 @@ Why for example the `PRODUCT_HOUSING` is important to be known to the firmware, 
 | Crownstone Plugs - Ready to Go Kit                | CR102M01/01 | 7091048321175 |
 | Crownstone Guidestone - Kit (10 units)            | CR201M01/01 | 7091047327949 |
 | Crownstone Built-in One - Starter Kit (10 units)  | CR101M01/02 | 8719326566085 |
-| Crownstone Built-in One - Extension Kit (1 unit)  | CR101M01/02 | 8719326566085 |
+| Crownstone Built-in One - Extension Kit (1 unit)  | CR101M01/02 | 8719326566092 |
+| Crownstone Hub                                    | CR103M01/01 | 8719326566078 |
 
 For questions, contact [Crownstone](https://crownstone.rocks/team/).

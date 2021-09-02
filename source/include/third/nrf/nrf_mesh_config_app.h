@@ -103,12 +103,26 @@
 /** Device version identifier. */
 #define DEVICE_VERSION_ID (0x0000)
 
-
+/**
+ * Number of entries in the replay protection cache.
+ *
+ * @note The number of entries in the replay protection list directly limits the number of elements
+ * a node can receive messages from on the current IV index. This means if your device has a replay
+ * protection list with 40 entries, a message from a 41st unicast address (element )will be dropped
+ * by the transport layer.
+ *
+ * @note The replay protection list size *does not* affect the node's ability to relay messages.
+ *
+ * @note This number is indicated in the device composition data of the node and provisioner can
+ * make use of this information to prevent unwarranted filling of the replay list on a given node in
+ * a mesh network.
+ */
+#define REPLAY_CACHE_ENTRIES 255
 
 /**
  * The default TTL value for the node.
  */
-#define ACCESS_DEFAULT_TTL (4)
+#define ACCESS_DEFAULT_TTL (CS_MESH_DEFAULT_TTL)
 
 /**
  * The number of models in the application.
@@ -116,11 +130,12 @@
  * @note To fit the configuration and health models, this value must equal at least
  * the number of models needed by the application plus two.
  */
-#define ACCESS_MODEL_COUNT (1 + /* Configuration server */  \
-                            1 + /* Health server */  \
-                            1 + /* Crownstone multicast model */  \
-                            1 + /* Crownstone multicast acked model */  \
-                            1   /* Crownstone unicast model */)
+#define ACCESS_MODEL_COUNT (1 /* Configuration server */  \
+                            + 1 /* Health server */  \
+                            + 1 /* Crownstone multicast model */  \
+                            + 1 /* Crownstone multicast acked model */  \
+                            + 1   /* Crownstone unicast model */ \
+                            + 1   /* Crownstone multicast neighbours model */)
 
 /**
  * The number of elements in the application.
@@ -144,7 +159,9 @@
 #define ACCESS_FLASH_PAGE_COUNT (1)
 
 /** Number of the allowed parallel transfers (size of the internal context pool). */
-#define ACCESS_RELIABLE_TRANSFER_COUNT (ACCESS_MODEL_COUNT)
+#define ACCESS_RELIABLE_TRANSFER_COUNT (1 /* Configuration server */  \
+                                        + 1 /* Health server */  \
+                                        + 1 /* Crownstone unicast model */)
 
 /** Define for acknowledging message transaction timeout, in micro seconds. */
 #define MODEL_ACKNOWLEDGED_TRANSACTION_TIMEOUT  (SEC_TO_US(3))

@@ -80,7 +80,7 @@ bool State::isTrue(CS_TYPE type, const PersistenceMode mode) {
 		case CS_TYPE::CONFIG_ENCRYPTION_ENABLED:
 		case CS_TYPE::CONFIG_IBEACON_ENABLED:
 		case CS_TYPE::CONFIG_SCANNER_ENABLED:
-		case CS_TYPE::CONFIG_PWM_ALLOWED:
+		case CS_TYPE::CONFIG_DIMMING_ALLOWED:
 		case CS_TYPE::CONFIG_SWITCH_LOCKED:
 		case CS_TYPE::CONFIG_SWITCHCRAFT_ENABLED:
 		case CS_TYPE::CONFIG_TAP_TO_TOGGLE_ENABLED: {
@@ -606,6 +606,9 @@ cs_ret_code_t State::getIdsFromFlash(const CS_TYPE & type, std::vector<cs_state_
 		}
 	}
 	std::vector<cs_state_id_t>* ids = new std::vector<cs_state_id_t>();
+	if (ids == nullptr) {
+		return ERR_NO_SPACE;
+	}
 
 	cs_state_id_t id;
 	cs_ret_code_t retCode = _storage->findFirst(type, id);

@@ -36,8 +36,7 @@ void Service::init(Stack* stack) {
 
 	uint32_t err_code;
 
-	_uuid.init();
-	const ble_uuid_t uuid = _uuid;
+	const ble_uuid_t& uuid = _uuid.getUuid();
 
 	_service_handle = BLE_CONN_HANDLE_INVALID;
 	err_code = sd_ble_gatts_service_add(BLE_GATTS_SRVC_TYPE_PRIMARY, &uuid, (uint16_t*) &_service_handle);
@@ -138,7 +137,6 @@ bool Service::on_write(const ble_gatts_evt_write_t& write_evt, uint16_t value_ha
 			return true;
 
 		} else if (characteristic->getValueHandle() == value_handle) {
-			// TODO: make a map.
 
 			if (write_evt.op == BLE_GATTS_OP_WRITE_REQ
 					|| write_evt.op == BLE_GATTS_OP_WRITE_CMD

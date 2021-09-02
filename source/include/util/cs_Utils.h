@@ -55,23 +55,14 @@ inline uint32_t convertEndian32(uint32_t val) {
  */
 #define CS_ROUND_UP_TO_MULTIPLE_OF_POWER_OF_2(num, multiple) ((num + multiple - 1) & -multiple)
 
-
-/** Macro that returns the length of an array
+/**
+ * Get number of items in an array.
  *
- * @a the array whose length should be calculated
- *
- * @return the length of the array
+ * Usage: auto count = ArraySize(myArray);
  */
-#define SIZEOF_ARRAY( a ) (int)(sizeof( a ) / sizeof( a[ 0 ] ))
-
-template<typename T>
-void printInlineArray(T* arr, uint16_t len, uint8_t verbosity = SERIAL_DEBUG) {
-	_logArray(verbosity, false, arr, len);
-}
-
-template<typename T>
-void printArray(T* arr, uint16_t len, uint8_t verbosity = SERIAL_DEBUG) {
-	_logArray(verbosity, true, arr, len);
+template<class T, size_t N>
+constexpr auto ArraySize(T(&)[N]) {
+	return N;
 }
 
 template<typename T>
@@ -120,6 +111,32 @@ inline bool clearBit(T& value, uint8_t bit) {
 }
 
 /**
+ * Returns the index of the lowest bit set in given value.
+ * If no bits are set, returns number of bits of value type.
+ *
+ * Examples for uint8_t:
+ * Value | Bit representation | Lowest bit
+ * 0     | 000000000          | 8
+ * 1     | 000000001          | 0
+ * 4     | 000000100          | 2
+ * 132	 | 100000100          | 2
+ */
+template<typename T>
+inline constexpr T lowestBitSet(T value) {
+	// TODO: there is a faster implementation for this.
+	T numBits = sizeof(T) * 8;
+	for (T i = 0; i < numBits; i++) {
+		if (value & 1) {
+			return i;
+		}
+		value >>= 1;
+	}
+	return numBits;
+}
+
+
+
+/**
  * Returns true when newValue is newer than previousValue, for a value that is increased all the time and overflows.
  */
 inline bool isNewer(uint8_t previousValue, uint8_t newValue) {
@@ -162,21 +179,6 @@ inline static cs_ret_code_t findAdvType(uint8_t type, uint8_t* advData, uint8_t 
 }
 
 
-/**
- * @brief Calculates a hash of given data.
- *
- * @param[in] Pointer to the data.
- * @param[in] Size of the data.
- * @retval    The hash.
- */
-inline uint16_t calcHash(const uint8_t* data, const uint16_t size) {
-	// Used implementation from here: http://www.cse.yorku.ca/~oz/hash.html
-	uint16_t hash = 5381;
-	for (int i=0; i<size; ++i) {
-		hash = ((hash << 5) + hash) + data[i];
-	}
-	return hash;
-}
 
 inline uint32_t getInterruptLevel() {
 //	return __get_IPSR() & 0x1FF;

@@ -14,9 +14,9 @@
 
 #include "protocol/cs_CommandTypes.h"
 #include "protocol/cs_ErrorCodes.h"
-#include "protocol/cs_TrackableParserPackets.h"
-
 #include "structs/cs_PacketsInternal.h"
+#include <structs/cs_BleCentralPackets.h>
+#include <structs/cs_CrownstoneCentralPackets.h>
 
 #include <behaviour/cs_SwitchBehaviour.h>
 #include <behaviour/cs_TwilightBehaviour.h>
@@ -27,6 +27,7 @@
 
 #include <time/cs_TimeSyncMessage.h>
 #include <mesh/cs_MeshMsgEvent.h>
+#include <protocol/cs_AssetFilterPackets.h>
 
 // #include <presence/cs_PresenceHandler.h>
 
@@ -120,8 +121,8 @@ enum class CS_TYPE: uint16_t {
 	CONFIG_KEY_MEMBER                       = 36,
 	CONFIG_KEY_BASIC                        = 37,
 //	CONFIG_DEFAULT_ON                       = 38,
-	CONFIG_SCAN_INTERVAL                    = 39,
-	CONFIG_SCAN_WINDOW                      = 40,
+	CONFIG_SCAN_INTERVAL_625US              = 39, // Scan interval in 625 µs units.
+	CONFIG_SCAN_WINDOW_625US                = 40, // Scan window in 625 µs units.
 	CONFIG_RELAY_HIGH_DURATION              = 41,
 	CONFIG_LOW_TX_POWER                     = 42,
 	CONFIG_VOLTAGE_MULTIPLIER               = 43,
@@ -135,7 +136,7 @@ enum class CS_TYPE: uint16_t {
 	CONFIG_SOFT_FUSE_CURRENT_THRESHOLD_DIMMER  = 51,
 	CONFIG_PWM_TEMP_VOLTAGE_THRESHOLD_UP    = 52,
 	CONFIG_PWM_TEMP_VOLTAGE_THRESHOLD_DOWN  = 53,
-	CONFIG_PWM_ALLOWED                      = 54,
+	CONFIG_DIMMING_ALLOWED                      = 54,
 	CONFIG_SWITCH_LOCKED                    = 55,
 	CONFIG_SWITCHCRAFT_ENABLED              = 56,
 	CONFIG_SWITCHCRAFT_THRESHOLD            = 57,
@@ -185,6 +186,13 @@ enum class CS_TYPE: uint16_t {
 	STATE_HUB_MODE                          = 157,
 	STATE_UART_KEY                          = 158,
 
+	STATE_ASSET_FILTERS_VERSION             = 159,
+	STATE_ASSET_FILTER_32                   = 160,
+	STATE_ASSET_FILTER_64                   = 161,
+	STATE_ASSET_FILTER_128                  = 162,
+	STATE_ASSET_FILTER_256                  = 163,
+	STATE_ASSET_FILTER_512                  = 164,
+
 	/*
 	 * Internal commands and events.
 	 * Start at Internal_Base.
@@ -201,9 +209,6 @@ enum class CS_TYPE: uint16_t {
 	EVT_BLE_CONNECT,                                       // Device connected.
 	EVT_BLE_DISCONNECT,                                    // Device disconnected.
 	CMD_ENABLE_ADVERTISEMENT,                              // Enable/disable advertising.
-	EVT_OUTGOING_CONNECT_START,                            // An outgoing connection is going to be made. Always followed by either connected or disconnected event.
-	EVT_OUTGOING_CONNECTED,                                // An outgoing connection is made.
-	EVT_OUTGOING_DISCONNECTED,                             // An outgoing connection is terminated or failed.
 
 	// Switch (aggregator)
 	CMD_SWITCH_OFF = InternalBaseSwitch,              // Turn switch off.
@@ -285,11 +290,11 @@ enum class CS_TYPE: uint16_t {
 	EVT_MESH_PAGES_ERASED,                            // All mesh storage pages are completely erased.
 	CMD_SEND_MESH_MSG_TRACKED_DEVICE_HEARTBEAT,       // Send a tracked device heartbeat mesh message.
 	EVT_MESH_TRACKED_DEVICE_HEARTBEAT,                // Mesh received a tracked device heartbeat.
-	EVT_MESH_RSSI_PING,                               // A ping message sent from another crownstone was received.
-	EVT_MESH_RSSI_DATA,                               // A message containing rssi data between sender and one of its neighbors was received.
+	EVT_MESH_RSSI_PING,                               // TODO: remove this type, it's not used.
+	EVT_MESH_RSSI_DATA,                               // TODO: remove this type, it's not used.
 	EVT_MESH_TIME_SYNC,                               // A time sync message was received
 	EVT_RECV_MESH_MSG,                                // A mesh message was received.
-	EVT_MESH_NEAREST_WITNESS_REPORT,                  // CS_MESH_MODEL_TYPE_NEAREST_WITNESS_REPORT was received on the mesh and parsed by MeshMsgHandler. Payload: MeshMsgEvent
+	EVT_MESH_NEAREST_WITNESS_REPORT,                  // Payload: MeshMsgEvent with type CS_MESH_MODEL_TYPE_REPORT_ASSET_[MAC,ID]. Originates from MeshMsgHandler.
 
 	// Behaviour
 	CMD_ADD_BEHAVIOUR = InternalBaseBehaviour,        // Add a behaviour.
@@ -311,12 +316,16 @@ enum class CS_TYPE: uint16_t {
 	CMD_TRACKED_DEVICE_HEARTBEAT,                     // Set location of a tracked device, with a TTL. This command can be sent instead of advertisements.
 	EVT_PRESENCE_CHANGE,                              // The presence has changed. When the first user enters, multiple events will be sent.
 	CMD_GET_PRESENCE,                                 // Get the current presence.
-	EVT_TRACKABLE,                                    // TrackableParser emits updates of this type.
 
-	CMD_UPLOAD_FILTER,                                // Update data chunk for a filter.                 See protocol or cs_TrackableParser.h for more information.
-	CMD_REMOVE_FILTER,                                // Remove a filter by id.                          See protocol or cs_TrackableParser.h for more information.
-	CMD_COMMIT_FILTER_CHANGES,                        // Confirm all recent changes to filters.          See protocol or cs_TrackableParser.h for more information.
-	CMD_GET_FILTER_SUMMARIES,                         // Obtain status summary for each filter in RAM.   See protocol or cs_TrackableParser.h for more information.
+	CMD_UPLOAD_FILTER,                                // Update data chunk for a filter.                 See PROTOCOL.md CTRL_CMD_FILTER_UPLOAD
+	CMD_REMOVE_FILTER,                                // Remove a filter by id.                          See PROTOCOL.md CTRL_CMD_FILTER_REMOVE
+	CMD_COMMIT_FILTER_CHANGES,                        // Confirm all recent changes to filters.          See PROTOCOL.md CTRL_CMD_FILTER_COMMIT
+	CMD_GET_FILTER_SUMMARIES,                         // Obtain status summary for each filter in RAM.   See PROTOCOL.md CTRL_CMD_FILTER_GET_SUMMARIES
+	EVT_FILTERS_UPDATED,                              // Sent when the asset filter master version was updated (after a commit command was accepted).
+	EVT_FILTER_MODIFICATION,                          // Sent when filter modification has started (payload is true) or stopped (payload is false).
+
+	EVT_ASSET_ACCEPTED,                               // Sent by AssetFiltering when an incoming scan is accepted by a filter.
+
 
 	// System
 	CMD_RESET_DELAYED = InternalBaseSystem,           // Reboot scheduled with a (short) delay.
@@ -328,7 +337,7 @@ enum class CS_TYPE: uint16_t {
 	EVT_TICK,                                         // Sent about every TICK_INTERVAL_MS ms.
 
 	CMD_CONTROL_CMD,                                  // Handle a control command.
-	EVT_SESSION_DATA_SET,                             // Session data and setup key are generated.
+	EVT_SESSION_DATA_SET,                             // Session data and setup key are generated. Data pointer has to point to memory that stays valid!
 	EVT_SETUP_DONE,                                   // Setup is done (and settings are stored).
 
 	CMD_GET_ADC_RESTARTS,                             // Get number of ADC restarts.
@@ -340,12 +349,47 @@ enum class CS_TYPE: uint16_t {
 	CMD_GET_ADC_CHANNEL_SWAPS,                        // Get number of detected ADC channel swaps.
 	CMD_GET_RAM_STATS,                                // Get RAM statistics.
 
-	CMD_MICROAPP,                                     // Microapp upload (e.g. Arduino code).
-	EVT_MICROAPP,                                     // Microapp event (e.g. write done)
+	CMD_MICROAPP_GET_INFO,                            // Microapp control command.
+	CMD_MICROAPP_UPLOAD,                              // Microapp control command. The data pointer is assume to remain valid until write is completed!
+	CMD_MICROAPP_VALIDATE,                            // Microapp control command.
+	CMD_MICROAPP_REMOVE,                              // Microapp control command.
+	CMD_MICROAPP_ENABLE,                              // Microapp control command.
+	CMD_MICROAPP_DISABLE,                             // Microapp control command.
+	EVT_MICROAPP_UPLOAD_RESULT,                       // Uploaded chunk has been written to flash, or failed to do so.
+	EVT_MICROAPP_ERASE_RESULT,                        // Microapp has been erase from flash, or failed to do so.
 	CMD_MICROAPP_ADVERTISE,                           // A microapp wants to advertise something.
+
+	CMD_BLE_CENTRAL_CONNECT,                          // Connect to a device.       See BleCentral::connect().
+	CMD_BLE_CENTRAL_DISCONNECT,                       // Disconnect from device.    See BleCentral::disconnect().
+	CMD_BLE_CENTRAL_DISCOVER,                         // Discover services.         See BleCentral::discoverServices().
+	CMD_BLE_CENTRAL_READ,                             // Read a characteristic.     See BleCentral::read().
+	CMD_BLE_CENTRAL_WRITE,                            // Write a characteristic.    See BleCentral::write().
+
+	EVT_BLE_CENTRAL_CONNECT_START,                    // An outgoing connection is going to be made. Always followed by EVT_BLE_CENTRAL_CONNECT_RESULT.
+	EVT_BLE_CENTRAL_CONNECT_RESULT,                   // Result of a connection attempt.
+	EVT_BLE_CENTRAL_DISCONNECTED,                     // Outgoing connection was terminated. By request, or due to some error.
+	EVT_BLE_CENTRAL_DISCOVERY,                        // A single service or characteristic is discovered.
+	EVT_BLE_CENTRAL_DISCOVERY_RESULT,                 // Result of service discovery.
+	EVT_BLE_CENTRAL_READ_RESULT,                      // Result of a read.
+	EVT_BLE_CENTRAL_WRITE_RESULT,                     // Result of a write.
+	EVT_BLE_CENTRAL_NOTIFICATION,                     // A notification has been received.
+
+	CMD_CS_CENTRAL_CONNECT,                           // Connect to a device.       See CrownstoneCentral::connect().
+	CMD_CS_CENTRAL_DISCONNECT,                        // Disconnect from device.    See CrownstoneCentral::disconnect().
+	CMD_CS_CENTRAL_WRITE,                             // Write a control command.   See CrownstoneCentral::write().
+	CMD_CS_CENTRAL_GET_WRITE_BUF,                     // Request the write buffer.  See CrownstoneCentral::requestWriteBuffer(). The result.buf will be set to the write buffer.
+
+	EVT_CS_CENTRAL_CONNECT_RESULT,
+	EVT_CS_CENTRAL_READ_RESULT,
+	EVT_CS_CENTRAL_WRITE_RESULT,
 
 	EVT_HUB_DATA_REPLY,                               // Sent when the hub data reply is received.
 	
+	CMD_MESH_TOPO_GET_MAC,                            // Get the MAC address of a given stone ID.
+	EVT_MESH_TOPO_MAC_RESULT,                         // The resulting MAC address.
+	CMD_MESH_TOPO_RESET,                              // Reset the stored mesh topology.
+	CMD_MESH_TOPO_GET_RSSI,                           // Get the RSSI to a stoneId. The RSSI is set in the result.
+
 	EVT_TWI_INIT,                                     // TWI initialisation.
 	EVT_TWI_WRITE,                                    // TWI write.
 	EVT_TWI_READ,                                     // TWI read (request).
@@ -434,13 +478,13 @@ typedef  int32_t TYPIFY(CONFIG_POWER_ZERO);
 typedef uint32_t TYPIFY(CONFIG_PWM_PERIOD);
 typedef    float TYPIFY(CONFIG_PWM_TEMP_VOLTAGE_THRESHOLD_UP);
 typedef    float TYPIFY(CONFIG_PWM_TEMP_VOLTAGE_THRESHOLD_DOWN);
-typedef     BOOL TYPIFY(CONFIG_PWM_ALLOWED);
+typedef     BOOL TYPIFY(CONFIG_DIMMING_ALLOWED);
 typedef uint16_t TYPIFY(CONFIG_RELAY_HIGH_DURATION);
 typedef     BOOL TYPIFY(CONFIG_SCANNER_ENABLED);
 typedef uint16_t TYPIFY(CONFIG_SCAN_BREAK_DURATION);
 typedef uint16_t TYPIFY(CONFIG_SCAN_DURATION);
-typedef uint16_t TYPIFY(CONFIG_SCAN_INTERVAL);
-typedef uint16_t TYPIFY(CONFIG_SCAN_WINDOW);
+typedef uint16_t TYPIFY(CONFIG_SCAN_INTERVAL_625US);
+typedef uint16_t TYPIFY(CONFIG_SCAN_WINDOW_625US);
 typedef uint16_t TYPIFY(CONFIG_SOFT_FUSE_CURRENT_THRESHOLD);
 typedef uint16_t TYPIFY(CONFIG_SOFT_FUSE_CURRENT_THRESHOLD_DIMMER);
 typedef     BOOL TYPIFY(CONFIG_START_DIMMER_ON_ZERO_CROSSING);
@@ -471,21 +515,38 @@ typedef uint32_t TYPIFY(STATE_BEHAVIOUR_MASTER_HASH);
 typedef cs_mesh_iv_index_t TYPIFY(STATE_MESH_IV_INDEX);
 typedef cs_mesh_seq_number_t TYPIFY(STATE_MESH_SEQ_NUMBER);
 typedef ibeacon_config_id_packet_t TYPIFY(STATE_IBEACON_CONFIG_ID);
-typedef cs_microapp_t TYPIFY(STATE_MICROAPP);
+typedef microapp_state_t TYPIFY(STATE_MICROAPP);
 typedef uint8_t TYPIFY(STATE_SOFT_ON_SPEED);
 typedef uint8_t TYPIFY(STATE_HUB_MODE);
-
+typedef asset_filters_version_t TYPIFY(STATE_ASSET_FILTERS_VERSION);
 
 typedef  void TYPIFY(EVT_ADC_RESTARTED);
 typedef  adv_background_t TYPIFY(EVT_ADV_BACKGROUND);
 typedef  adv_background_parsed_t TYPIFY(EVT_ADV_BACKGROUND_PARSED);
 typedef  adv_background_parsed_v1_t TYPIFY(EVT_ADV_BACKGROUND_PARSED_V1);
 typedef  void TYPIFY(EVT_ADVERTISEMENT_UPDATED);
+typedef  ble_central_connect_t TYPIFY(CMD_BLE_CENTRAL_CONNECT);
+typedef  void TYPIFY(CMD_BLE_CENTRAL_DISCONNECT);
+typedef  ble_central_discover_t TYPIFY(CMD_BLE_CENTRAL_DISCOVER);
+typedef  ble_central_read_t TYPIFY(CMD_BLE_CENTRAL_READ);
+typedef  ble_central_write_t TYPIFY(CMD_BLE_CENTRAL_WRITE);
 typedef  void TYPIFY(EVT_BLE_CONNECT);
 typedef  void TYPIFY(EVT_BLE_DISCONNECT);
-typedef  void TYPIFY(EVT_OUTGOING_CONNECT_START);
-typedef  void TYPIFY(EVT_OUTGOING_CONNECTED);
-typedef  void TYPIFY(EVT_OUTGOING_DISCONNECTED);
+typedef  void TYPIFY(EVT_BLE_CENTRAL_CONNECT_START);
+typedef  cs_ret_code_t TYPIFY(EVT_BLE_CENTRAL_CONNECT_RESULT);
+typedef  void TYPIFY(EVT_BLE_CENTRAL_DISCONNECTED);
+typedef  ble_central_discovery_t TYPIFY(EVT_BLE_CENTRAL_DISCOVERY);
+typedef  cs_ret_code_t TYPIFY(EVT_BLE_CENTRAL_DISCOVERY_RESULT);
+typedef  ble_central_read_result_t TYPIFY(EVT_BLE_CENTRAL_READ_RESULT);
+typedef  cs_ret_code_t TYPIFY(EVT_BLE_CENTRAL_WRITE_RESULT);
+typedef  ble_central_notification_t TYPIFY(EVT_BLE_CENTRAL_NOTIFICATION);
+typedef  cs_central_connect_t TYPIFY(CMD_CS_CENTRAL_CONNECT);
+typedef  void TYPIFY(CMD_CS_CENTRAL_DISCONNECT);
+typedef  cs_central_write_t TYPIFY(CMD_CS_CENTRAL_WRITE);
+typedef  void TYPIFY(CMD_CS_CENTRAL_GET_WRITE_BUF);
+typedef  cs_ret_code_t TYPIFY(EVT_CS_CENTRAL_CONNECT_RESULT);
+typedef  cs_central_write_result_t TYPIFY(EVT_CS_CENTRAL_READ_RESULT);
+typedef  cs_central_write_result_t TYPIFY(EVT_CS_CENTRAL_WRITE_RESULT);
 typedef  void TYPIFY(EVT_BROWNOUT_IMPENDING);
 typedef  void TYPIFY(EVT_CHIP_TEMP_ABOVE_THRESHOLD);
 typedef  void TYPIFY(EVT_CHIP_TEMP_OK);
@@ -573,12 +634,14 @@ typedef uint8_t /* PresenceHandler::MutationType */ TYPIFY(EVT_PRESENCE_MUTATION
 typedef presence_change_t TYPIFY(EVT_PRESENCE_CHANGE);
 typedef void TYPIFY(CMD_GET_PRESENCE);
 typedef profile_location_t TYPIFY(EVT_RECEIVED_PROFILE_LOCATION);
-typedef TrackableEvent TYPIFY(EVT_TRACKABLE);
 
-typedef trackable_parser_cmd_upload_filter_t TYPIFY(CMD_UPLOAD_FILTER);
-typedef trackable_parser_cmd_remove_filter_t TYPIFY(CMD_REMOVE_FILTER);
-typedef trackable_parser_cmd_commit_filter_changes_t TYPIFY(CMD_COMMIT_FILTER_CHANGES);
-typedef trackable_parser_cmd_get_filer_summaries_t TYPIFY(CMD_GET_FILTER_SUMMARIES);
+typedef asset_filter_cmd_upload_filter_t TYPIFY(CMD_UPLOAD_FILTER);
+typedef asset_filter_cmd_remove_filter_t TYPIFY(CMD_REMOVE_FILTER);
+typedef asset_filter_cmd_commit_filter_changes_t TYPIFY(CMD_COMMIT_FILTER_CHANGES);
+typedef void TYPIFY(CMD_GET_FILTER_SUMMARIES);
+typedef void TYPIFY(EVT_FILTERS_UPDATED);
+typedef bool TYPIFY(EVT_FILTER_MODIFICATION);
+typedef AssetAcceptedEvent TYPIFY(EVT_ASSET_ACCEPTED);
 
 typedef bool TYPIFY(CMD_SET_RELAY);
 typedef uint8_t TYPIFY(CMD_SET_DIMMER); // interpret as intensity value, not combined with relay state.
@@ -602,8 +665,14 @@ typedef void TYPIFY(CMD_GET_RESET_REASON);
 typedef uint8_t TYPIFY(CMD_GET_GPREGRET);
 typedef void TYPIFY(CMD_GET_ADC_CHANNEL_SWAPS);
 typedef void TYPIFY(CMD_GET_RAM_STATS);
-typedef microapp_upload_packet_t TYPIFY(CMD_MICROAPP);
-typedef microapp_notification_packet_t TYPIFY(EVT_MICROAPP);
+typedef void TYPIFY(CMD_MICROAPP_GET_INFO);
+typedef microapp_upload_internal_t TYPIFY(CMD_MICROAPP_UPLOAD);
+typedef microapp_ctrl_header_t TYPIFY(CMD_MICROAPP_VALIDATE);
+typedef microapp_ctrl_header_t TYPIFY(CMD_MICROAPP_REMOVE);
+typedef microapp_ctrl_header_t TYPIFY(CMD_MICROAPP_ENABLE);
+typedef microapp_ctrl_header_t TYPIFY(CMD_MICROAPP_DISABLE);
+typedef cs_ret_code_t TYPIFY(EVT_MICROAPP_UPLOAD_RESULT);
+typedef cs_ret_code_t TYPIFY(EVT_MICROAPP_ERASE_RESULT);
 typedef microapp_advertise_request_t TYPIFY(CMD_MICROAPP_ADVERTISE);
 typedef uint32_t TYPIFY(CMD_TEST_SET_TIME);
 typedef MeshMsgEvent TYPIFY(EVT_MESH_RSSI_PING);
@@ -611,6 +680,10 @@ typedef MeshMsgEvent TYPIFY(EVT_MESH_RSSI_DATA);
 typedef time_sync_message_t TYPIFY(EVT_MESH_TIME_SYNC);
 typedef MeshMsgEvent TYPIFY(EVT_RECV_MESH_MSG);
 typedef hub_data_reply_t TYPIFY(EVT_HUB_DATA_REPLY);
+typedef stone_id_t TYPIFY(CMD_MESH_TOPO_GET_MAC);
+typedef mesh_topo_mac_result_t TYPIFY(EVT_MESH_TOPO_MAC_RESULT);
+typedef void TYPIFY(CMD_MESH_TOPO_RESET);
+typedef stone_id_t TYPIFY(CMD_MESH_TOPO_GET_RSSI);
 typedef MeshMsgEvent TYPIFY(EVT_MESH_NEAREST_WITNESS_REPORT);
 
 // TWI / I2C module
